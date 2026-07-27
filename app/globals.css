@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Backgrounds */
+  --bg-page: #f7f6f3;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f0eee9;
+  --bg-sunken: #e8e5de;
+
+  /* Text */
+  --text-primary: #18170f;
+  --text-secondary: #5c5847;
+  --text-muted: #9c9580;
+  --text-disabled: #c4bfb2;
+
+  /* Borders */
+  --border: #e3dfd7;
+  --border-strong: #c9c4ba;
+
+  /* Accent — deep amber-orange */
+  --accent: #d4660a;
+  --accent-hover: #b8570a;
+  --accent-subtle: #fdf0e6;
+  --accent-border: #f0c89a;
+
+  /* Semantic */
+  --success: #1a6b3a;
+  --success-bg: #ebf5ee;
+  --warning: #92600a;
+  --warning-bg: #fef8ed;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    font-weight: 400;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: var(--accent-subtle);
+    color: var(--text-primary);
+  }
+
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  .lever-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+
+  .lever-focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--accent);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border: 3px solid var(--bg-page);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

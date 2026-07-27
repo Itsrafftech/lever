@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String?
+  passwordHash       String? // null for OAuth users
+  image              String?
+  googleAccessToken  String?
+  googleRefreshToken String?
+  googleTokenExpiry  DateTime?
+  // Set when Google rejects the refresh token (invalid_grant). Drives the
+  // "reconnect your calendar" banner; cleared on the next successful consent.
+  googleTokenInvalidAt DateTime?
+  googleCalendarId   String? // which calendar to sync to
+  syncSessionsToCalendar Boolean @default(true)
+  importCalendarEvents   Boolean @default(true)
+  calendarLastSyncedAt   DateTime?
+  focusChecklist     String? // JSON array of remembered environment checklist state
+  onboardedAt        DateTime?
+  timezone           String    @default("Asia/Jakarta")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  goals         Goal[]
+  tasks         Task[]
+  focusSessions FocusSession[]
+  intentions    Intention[]
+  dailyCheckins DailyCheckin[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Goal {
+  id          String       @id @default(cuid())
+  userId      String
+  title       String // The "north star" — one sentence, max 120 chars
+  description String?
+  category    GoalCategory @default(PERSONAL)
+  progress    Int          @default(0) // 0-100 subjective %
+  isArchived  Boolean      @default(false)
+  isPinned    Boolean      @default(false)
+  targetDate  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  tasks Task[]
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum GoalCategory {
+  PERSONAL
+  WORK
+  HEALTH
+  LEARNING
+  FINANCIAL
+  RELATIONSHIP
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  userId       String
+  goalId       String?
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  priority     Priority   @default(MEDIUM)
+  dueDate      DateTime?
+  scheduledFor DateTime? // when user plans to work on it
+  sortOrder    Int        @default(0)
+
+  // Steel formula scores (1-10 each, optional)
+  expectancy      Int? // E: confidence of success
+  value           Int? // V: importance/reward
+  impulsiveness   Int? // I: distractibility
+  delay           Int? // D: proximity of deadline
+  motivationScore Int? // calculated: normalized 0-100
+
+  // Effort tracking
+  estimatedMinutes Int?
+  actualMinutes    Int?
+
+  // Google Calendar
+  calendarEventId String?
+
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  startedAt     DateTime?
+  completedAt   DateTime?
+  skippedAt     DateTime?
+  skippedReason String?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  goal          Goal?          @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  focusSessions FocusSession[]
+  intention     Intention?
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([goalId])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model FocusSession {
+  id           String        @id @default(cuid())
+  userId       String
+  taskId       String?
+  type         SessionType   @default(POMODORO)
+  durationMins Int           @default(25)
+  status       SessionStatus @default(ACTIVE)
+
+  // Timing
+  plannedStart DateTime
+  actualStart  DateTime?
+  completedAt  DateTime?
+  abandonedAt  DateTime?
+
+  // Time-to-start: seconds between plannedStart and actualStart
+  timeToStartSecs Int?
+
+  // Notes
+  intentionText String? // the if-then intention for this session
+  notes         String? // post-session reflection
+  rating        Int? // 1-5 post-session reflection
+
+  // Google Calendar
+  calendarEventId String?
+
+  createdAt DateTime @default(now())
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, plannedStart])
+  @@index([taskId])
+}
+
+enum SessionType {
+  POMODORO // 25 min focus
+  DEEP_WORK // custom duration
+  QUICK // 10 min
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+model Intention {
+  id         String   @id @default(cuid())
+  userId     String
+  taskId     String   @unique
+  ifClause   String // "If I am at my desk at 9am..."
+  thenClause String // "...I will open the document and write the first paragraph"
+  atTime     String? // "07:00"
+  daysOfWeek Int[] // 0=Sunday .. 6=Saturday
+  isActive   Boolean  @default(true)
+  lastActivatedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model DailyCheckin {
+  id     String   @id @default(cuid())
+  userId String
+  date   DateTime // date only (normalized to midnight UTC)
+
+  // Completion metrics
+  tasksPlanned       Int  @default(0)
+  tasksCompleted     Int  @default(0)
+  focusMinutes       Int  @default(0)
+  avgTimeToStartSecs Int?
+
+  // Subjective scores (1-10)
+  energyLevel Int?
+  focusQuality Int?
+
+  // Mood note
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
